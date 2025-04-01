@@ -1,15 +1,19 @@
+# Generate a random ID for the resource group name
 resource "random_id" "rg_name" {
   byte_length = 8
 }
 
+# Generate a random ID for the environment name
 resource "random_id" "env_name" {
   byte_length = 8
 }
 
+# Generate a random ID for the container name
 resource "random_id" "container_name" {
   byte_length = 4
 }
 
+# Create an Azure Resource Group
 resource "azurerm_resource_group" "test" {
   location = "eastus"
   name     = "example-container-app-${random_id.rg_name.hex}"
@@ -32,6 +36,7 @@ locals {
   user_identity = "identity-${random_id.container_name.hex}"
 }
 
+# Deploy a User-Assigned Managed Identity
 module "test" {
   source              = "Azure/avm-res-managedidentity-userassignedidentity/azurerm"
   location            = azurerm_resource_group.test.location
@@ -40,6 +45,7 @@ module "test" {
   resource_group_name = azurerm_resource_group.test.name
 }
 
+# Create an Azure Container Apps Environment
 resource "azurerm_container_app_environment" "example" {
   location            = azurerm_resource_group.test.location
   name                = "my-environment"
@@ -47,9 +53,10 @@ resource "azurerm_container_app_environment" "example" {
 }
 
 
-
+# Get the current Azure Client Configuration
 data "azurerm_client_config" "current" {}
 
+# Deploy an Azure Key Vault
 module "key_vault" {
 
   source             = "Azure/avm-res-keyvault-vault/azurerm"
@@ -87,10 +94,11 @@ module "key_vault" {
   }
 }
 
-output "secrets" {
-  value = module.key_vault.secrets
-}
+# output "secrets" {
+#   value = module.key_vault.secrets
+# }
 
+# Deploy a Container App
 module "counting" {
   source                                = "Azure/avm-res-app-containerapp/azurerm"
   container_app_environment_resource_id = azurerm_container_app_environment.example.id
@@ -113,6 +121,8 @@ module "counting" {
       },
     ]
   }
+
+  # Configure ingress settings
   ingress = {
     allow_insecure_connections = true
     client_certificate_mode    = "ignore"
@@ -124,11 +134,13 @@ module "counting" {
     }]
   }
 
+  # Assign managed identities
   managed_identities = {
     system_assigned = false
     user_assigned_resource_ids = [module.test.resource_id]
   }
   
+  # Assign secrets from Key Vault
   secrets = {
     test_secret = {
       name  = "test-secret"
